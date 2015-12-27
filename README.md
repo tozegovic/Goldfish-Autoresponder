@@ -69,14 +69,15 @@ USE mailserver;
 ```
 
 ```sql
-INSERT INTO `autoresponder` (`email`, `descname`, `from`, `to`, `message`, `enabled`, `force_enabled`, `subject`) VALUES ('office@mail.com', 'office@mail.com Autoresponse', '2015-05-20', '2015-05-30', 'Dear mailer\r\n, I will be out of office till 2015-05-30. Please contact one of my colleagues.\r\nThanks!\r\Henk', 1, 1, 'Out of Office');
+INSERT INTO `autoresponder` (`email`, `descname`, `from`, `to`, `message`, `enabled`, `force_enabled`, `subject`) VALUES ('office@mail.com', 'office@mail.com Autoresponse:', '2015-05-20', '2015-05-30', 'Dear mailer\r\n, I will be out of office till 2015-05-30. Please contact one of my colleagues.\r\nThanks!\r\Henk', 1, 1, 'Out of Office: %s');
 ```
 
 ```sql
 quit;
 ```
 
-The above command created an autoresposne for ``office@mail.com`` which will be active from ``2015-05-20`` till ``2015-05-30``. Because we have created a cronjob which runs every 5 minutes, Goldfish won't send a message immediately, but somewhere within a range of five minutes after the mail was received. 
+The above command created an autoresponse for ``office@mail.com`` which will be active from ``2015-05-20`` till ``2015-05-30``. Because we have created a cronjob which runs every 5 minutes, Goldfish won't send a message immediately, but somewhere within a range of five minutes after the mail was received.
+Note that adding %s within the Subject will insert received email subject within the response Subject line.
 
 When opening the ``/var/log/goldfish`` it will show something like this:
 

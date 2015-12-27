@@ -57,7 +57,8 @@
     /* Database Queries */
     
     # This query has to return the path (`path`) of the corresponding maildir-Mailbox with email-address %m
-    $conf['q_mailbox_path'] = "SELECT CONCAT('/var/mail/vhosts/', SUBSTRING_INDEX(email,'@',-1), '/', SUBSTRING_INDEX(email,'@',1), '/') AS `path` FROM virtual_users WHERE `email` = '%m'";
+    //$conf['q_mailbox_path'] = "SELECT CONCAT('/var/mail/vhosts/', SUBSTRING_INDEX(email,'@',-1), '/', SUBSTRING_INDEX(email,'@',1), '/') AS `path` FROM virtual_users WHERE `email` = '%m'";
+    $conf['q_mailbox_path'] = "SELECT CONCAT('/home/',SUBSTRING_INDEX(email,'@',1), '/Maildir/') AS `path` FROM autoresponder WHERE `email` = '%m'";
     
     # This query has to return the following fields from the autoresponder table: `from`, `to`, `email`, `message` where `enabled` = 2
     $conf['q_forwardings'] = "SELECT * FROM `autoresponder` WHERE `enabled` = 1 AND `force_disabled` = 0"; //modified for the autoresponder plugin
@@ -150,7 +151,7 @@
     $link = @mysql_connect($conf['mysql_host'], $conf['mysql_user'], $conf['mysql_password']);
     if (!$link)
     {
-		$log->addLine("Could not connect to database. Abborting.");
+		$log->addLine("Could not connect to database. Aborting.");
 		endup($log, $conf);
     }
     else
@@ -247,10 +248,11 @@
 	    	{
 		    	if ($entry != '.' && $entry != '..')
 		    	{
-                    $log->addLine("Found entry [" . $entry . "] in directory " . $path);
+                    $log->addLine("Found email [" . $entry . "] in directory " . $path);
                     
-					if (time() - filemtime($path . $entry) - $conf['cycle'] <= 0)
-					{
+					if (! (time() - filemtime($path . $entry) - $conf['cycle'] <= 0)){
+						$log->addLine("Email too old. ");
+					}else{
 			    		$mails[] = $path . $entry;
 			    		
 					    ###################################
@@ -272,14 +274,17 @@
     						if (substr($line, 0, 5) == 'From:' && strstr($line,"@"))
 					        {
 						        $address = substr($line, strpos($line, '<') + 1, strpos($line, '>') - strpos($line, '<')-1)."\n";
-						        break;
-					        } 
+					        }
 					        elseif(substr($line,0,5) == 'From:' && !strstr($line,"@") && !empty ($returnpath))
 					        {
 				                $address = $returnpath;
-				                break;
-					        } 
-    					} 
+					        }
+
+							if (substr($line, 0, 8) == 'Subject:')
+							{
+								$receivedSubject = substr($line, strpos($line, ':') + 1);
+							}
+						}
 		    
 			    		// Check: Is this mail allready answered
 			    
@@ -289,6 +294,8 @@
 			    		}
 			    		else
 			    		{
+							$log->addLine("Sender: $address");
+
 							// Get data of current mail
 				   			$email = $emails[$i];
 				    
@@ -305,7 +312,11 @@
 				    		}
 		
 				    		$subject = mysql_result($result, 0, 'subject');
-	
+
+							// allow inserting received subject into response subject using %s within 'subject' field in MySQL
+							$responseSubject = sprintf($subject, $receivedSubject );
+
+
 				    		// Get Message
 				    		$result = mysql_query(str_replace("%m", $emails[$i], $conf['q_messages']));
 				    		
@@ -321,13 +332,6 @@
 				    		$message = mysql_result($result, 0, 'message');
 	
 				    		$headers = "From: ".$name[$i]."<".$emails[$i].">";
-	
-				    		// Check if mail is allready an answer:
-				    		if (strstr($mail, $message))
-				    		{
-								$log->addLine("Mail from {$emails[$i]} allready answered");
-								break;
-				    		}
 				
 							// strip the line break from $address for checks
 							// fix by Karl Herrick, thank's a lot
